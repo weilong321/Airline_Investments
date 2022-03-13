@@ -1,0 +1,217 @@
+---
+title: "Which airlines should I invest in?"
+author: "Matthew Chen"
+output: 
+  html_document:
+    code_folding: hide  # don't change this
+    code_download: true # embed .Rmd file
+    toc: true  # table of contents
+    toc_depth: 3
+    toc_float: true # toc is always visible when scrolled
+    number_section: true # add section numbers to headings
+    theme: cosmo
+      bootswatch: "lux" # check https://bootswatch.com/ 
+      base_font:
+        google: Prompt # select any Google Font
+      heading_font:
+        google: Proza Libre # select any Google Font
+---
+
+# Executive Summary
+
+The client is an investor interested in the flight industry asking for advice on potentially profitable airlines to invest in. From the analysis, it shows that it would be most profitable to invest in Qantas, Jetstar and Virgin airlines. These airlines control most of the airspace in Brisbane, Melbourne and Sydney airports. The cities listed above are the most popular cities to travel to and from Australia as they consist of nearly 80% of all flights recorded in the dataset. Although there is no normality between each airline’s flights, specific months are to be considered for short-term investing.
+
+
+# Initial Data Analysis (IDA)
+
+This dataset comes from the Australian Bureau of Infrastructure and Transport Research Economics. As suggested in the notes, this data covers the flights and seats operated by international commercial airlines flying to and from Australia. As the purpose of the investigation is determining which airlines would be most profitable to invest in, one would need to discuss specific limitations to this topic. Stated upon the notes, it declares that “Airlines are responsible for providing accurate seat data to and from Australia on an Over The Coast basis… the airlines are not responsible for verifying the information contained in this file.” The notes further suggest that when an airline has not supplied data prior to publication, the data is estimated based on scheduling and previous reporting. The decision to leave out seats analysis was due to the fact that flights with more than one stop showed more seats than normal amounts from double counting seats from place A to place B and place B to place C. Although seats mean selling more tickets producing more profit, the seats data was not reliable and accurate enough to include in the analysis. The omission of 2021 flights were due to the fact that they would not accurately reflect flights due to COVID travel restrictions.
+
+# Data analysis and recommendations
+
+```{r, message = FALSE, warning = FALSE}
+data <- read.csv("international_airline_activity_opfltsseats.csv")
+library(dplyr)
+library(tidyverse)
+library("ggpubr")
+library(patchwork)
+library(showtext)
+```
+
+## Finding the top three airlines of the most popular Australian cities
+Firstly, data cleaning was done to clear out any N/A rows. By filtering each unique airport, we found the top three airports for air traffic and through that, the top airlines operating within each airport.
+
+```{r include = FALSE, message=FALSE, error = FALSE, fig.showtext=TRUE}
+data <- na.omit(data)
+unique(data$Australian_City)
+adelaide <- filter(data, Australian_City == "Adelaide")
+brisbane <- filter(data, Australian_City == "Brisbane")
+cairns <- filter(data, Australian_City == "Cairns")
+christmas_island <- filter(data, Australian_City == "Christmas Island")
+darwin <- filter(data, Australian_City == "Darwin")
+gold_coast <- filter(data, Australian_City == "Gold Coast")
+melbourne <- filter(data, Australian_City == "Melbourne")
+norfolk_island <- filter(data, Australian_City == "Norfolk Island")
+perth <- filter(data, Australian_City == "Perth")
+sydney <- filter(data, Australian_City == "Sydney")
+canberra <- filter(data, Australian_City == "Canberra")
+port_hedland <- filter(data, Australian_City == "Port Hedland")
+townsville <- filter(data, Australian_City == "Townsville")
+sunshine_coast <- filter(data, Australian_City == "Sunshine Coast")
+newcastle <- filter(data, Australian_City == "Newcastle")
+hobart <- filter(data, Australian_City == "Hobart")
+nrow(brisbane) # number of Brisbane flights
+nrow(melbourne) # number of Melbourne flights
+nrow(sydney) # number of Sydney flights
+brisbane_airlines <- as.data.frame(table(brisbane$Airline))
+sydney_airlines <- as.data.frame(table(sydney$Airline))
+melbourne_airlines <- as.data.frame(table(melbourne$Airline))
+```
+```{r message=FALSE, error = FALSE, fig.showtext=TRUE}
+bris <- ggplot(data=brisbane_airlines, aes(x=Var1, y=Freq)) + 
+  geom_bar(stat="identity") + 
+  xlab("Different Airlines") + 
+  ylab("Total Brisbane Flights by Airline") + 
+  theme(axis.text.x=element_blank(),axis.ticks.x=element_blank())
+melb <- ggplot(data=melbourne_airlines, aes(x=Var1, y=Freq)) + 
+  geom_bar(stat="identity") + 
+  xlab("Different Airlines") + 
+  ylab("Total Melbourne Flights by Airline") + 
+  theme(axis.text.x=element_blank(),axis.ticks.x=element_blank())
+syd <- ggplot(data=sydney_airlines, aes(x=Var1, y=Freq)) + 
+  geom_bar(stat="identity") + 
+  xlab("Different Airlines") + 
+  ylab("Total Sydney Flights by Airline") + 
+  theme(axis.text.x=element_blank(),axis.ticks.x=element_blank())
+bris + melb + syd
+```
+
+From analysis, the top three airports in Australia are Brisbane, Melbourne and Sydney.
+
+## Scatterplots to show airlines' flights per month
+We then created a new dataframe consisting of months of the year and the top airlines’ flights per month. Using this new dataset, scatterplots were created showcasing the numbers of flights per month.
+
+```{r, error = FALSE}
+# find number of flights of specific airline vs month
+different_months <- unique(data$Month_num)
+
+# vector for different months
+month_vector <- c()
+for (i in different_months) {
+    data %>% filter(Month_num == i)
+    month_vector <- c(month_vector, i)
+}
+# vector for each airline for all flights
+qantas <- c()
+jetstar <- c()
+virgin <- c()
+
+for (i in different_months) {
+    filtered <- data %>% filter(Month_num == i) %>% filter(Airline == "Qantas Airways")
+    total <- sum(filtered[, 'All_Flights'])
+    qantas <- c(qantas, total)
+}
+for (i in different_months) {
+    filtered <- data %>% filter(Month_num == i) %>% filter(Airline == "Jetstar")
+    total <- sum(filtered[, 'All_Flights'])
+    jetstar <- c(jetstar, total)
+}
+for (i in different_months) {
+    filtered <- data %>% filter(Month_num == i) %>% filter(Airline == "Virgin Australia")
+    total <- sum(filtered[, 'All_Flights'])
+    virgin <- c(virgin, total)
+}
+# creating new dataframe
+airline_flight_data <- data.frame(month_vector, qantas, jetstar, virgin)
+# creating scatter plots for each airline
+qantas_scatter <- airline_flight_data %>% 
+  head(177) %>% 
+  ggplot(aes(x = month_vector, y = qantas)) + 
+  geom_line(color="grey") + 
+  geom_point(shape=21, color="black", fill="#69b3a2", size=1.5) +
+  xlab("Months") +
+  ylab("Qantas Total Monthly Flights")
+jetstar_scatter <- airline_flight_data %>% 
+  head(177) %>% 
+  ggplot(aes(x = month_vector, y = jetstar)) + 
+  geom_line(color="grey") + 
+  geom_point(shape=21, color="black", fill="#69b3a2", size=1.5) +
+  xlab("Months") +
+  ylab("Jetstar Total Monthly Flights")
+virgin_scatter <- airline_flight_data %>% 
+  head(177) %>% 
+  ggplot(aes(x = month_vector, y = virgin)) + 
+  geom_line(color="grey") + 
+  geom_point(shape=21, color="black", fill="#69b3a2", size=1.5) +
+  xlab("Months") +
+  ylab("Virgin Total Monthly Flights")
+qantas_scatter + jetstar_scatter + virgin_scatter
+```
+
+
+## Regression Tests for Qantas, Jetstar and Virgin
+We checked the normality of the data through regression testing. The use of null hypothesis, residual plot, QQ plot, Shapiro-Wilks test and the T statistic assisted in the determination of whether the data lay in normal distribution. By creating the residual plots, one may already notice there are large discrepancies between each point and the line of best fit. By plotting the QQ plots the data does not follow the reference line but rather deviate wildly at some points. The Shapiro-Wilks test and the T statistics test were done to show that the p-values were above 0.05 and the t-value being in between -2 and 2 further confirming the lack of normality.
+
+```{r, message=FALSE}
+# Regression Test Qantas
+qantas_h0 = mean(airline_flight_data$qantas) # h0
+fit1 <- lm(qantas~month_vector, data = airline_flight_data) # residual plot
+airline_flight_data$predicted <- predict(fit1)
+airline_flight_data$residuals <- residuals(fit1)
+qantas_regression <- ggplot(airline_flight_data, aes(x = month_vector, y = qantas)) +
+  geom_smooth(method = "lm", se = FALSE, color = "lightgrey") +  
+  geom_segment(aes(xend = month_vector, yend = predicted), alpha = .5) + 
+  geom_point() +
+  geom_point(aes(y = predicted), shape = 1) +
+  theme_bw() +
+  xlab("Months") +
+  ylab("Qantas Total Monthly Flights")
+qantas_qq <- ggqqplot(airline_flight_data$qantas) + # qqplot
+  ggtitle("Qantas QQ Plot")
+
+
+# Regression Test Jetstar
+jetstar_h0 = mean(airline_flight_data$jetstar) # h0
+fit2 <- lm(jetstar~month_vector, data = airline_flight_data) # residual plot
+airline_flight_data$predicted <- predict(fit2)
+airline_flight_data$residuals <- residuals(fit2)
+jetstar_regression <- ggplot(airline_flight_data, aes(x = month_vector, y = jetstar)) +
+  geom_smooth(method = "lm", se = FALSE, color = "lightgrey") +  
+  geom_segment(aes(xend = month_vector, yend = predicted), alpha = .5) +  
+  geom_point() +
+  geom_point(aes(y = predicted), shape = 1) +
+  theme_bw() +
+  xlab("Months") +
+  ylab("Jetstar Total Monthly Flights")
+jetstar_qq <- ggqqplot(airline_flight_data$jetstar) + # qqplot
+  ggtitle("Jetstar QQ Plot")
+
+
+# Regression Test Jetstar
+virgin_h0 = mean(airline_flight_data$virgin) # h0
+fit3 <- lm(virgin~month_vector, data = airline_flight_data) # residual plot
+airline_flight_data$predicted <- predict(fit3)
+airline_flight_data$residuals <- residuals(fit3)
+virgin_regression <- ggplot(airline_flight_data, aes(x = month_vector, y = virgin)) +
+  geom_smooth(method = "lm", se = FALSE, color = "lightgrey") +  
+  geom_segment(aes(xend = month_vector, yend = predicted), alpha = .5) +  
+  geom_point() +
+  geom_point(aes(y = predicted), shape = 1) +
+  theme_bw() +
+  xlab("Months") +
+  ylab("Virgin Total Monthly Flights")
+virgin_qq <- ggqqplot(airline_flight_data$virgin) + # qqplot
+  ggtitle("Virgin QQ Plot")
+
+qantas_regression + jetstar_regression + virgin_regression
+qantas_qq + jetstar_qq + virgin_qq
+```
+
+## Recommendations to Client
+Due to the lack of normality, there is no clear trend indicating any increase or decrease in flights. Although, by looking at the scatter plots of each airline, we can see that they follow a similar pattern with the majority of increased flights being around December to January and June to July. This is consistent with the fact that people often take holidays around these times meaning the airlines would be making more profit than other times. If the client is interested in short-term trading, they should probably sell at those times and buy during other times where stock prices would be lowered due to less income.
+
+These above predictions are definitely affected by a variety of external factors. Especially during the COVID period, the lockdown restrictions caused the flight industry to temporarily shut down, plummeting stocks. It was even reported that Virgin Australia had become bankrupt and was sold to US-based Bain Capital (AP NEWS, 2020). As such it would be advisable to keep close observation of airlines as restrictions are being lifted slowly. Although COVID is the major factor in the reduction of stock prices of major airlines there are other factors influencing the investment prices such as the oil price change as depicted by Yun & Yoon (2018) will cause airlines’ profit and loss to change and in turn fluctuates their stock prices.
+
+
+# References
+> * Virgin Australia airline to be sold to US-based Bain Capital. (2020, September 4). AP NEWS. https://apnews.com/article/83fb298f85db8cf203d22005fd0a4145
+> * Yun, X., & Yoon, S. M. (2019). Impact of oil price change on airline’s stock price and volatility: Evidence from China and South Korea. Energy Economics, 78, 668–679. https://doi.org/10.1016/j.eneco.2018.09.015
